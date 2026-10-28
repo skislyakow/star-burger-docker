@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - ../../.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-starburger}
+      POSTGRES_USER: ${POSTGRES_USER:-starburger}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starburger}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-starburger}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  frontend-builder:
+    build:
+      context: ../../star-burger-src
+      dockerfile: ../star-burger-docker/docker/frontend/Dockerfile
+    volumes:
+      - frontend_bundles_prod:/app/bundles
+    command: sh -c "echo 'Frontend built'"
+
+  backend:
+    build:
+      context: ../../star-burger-src
+      dockerfile: ../star-burger-docker/docker/backend/Dockerfile
+    command: sh -c "python manage.py migrate && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - media_data_prod:/app/media
+      - frontend_bundles_prod:/app/bundles
+      - static_data_prod:/app/staticfiles
+    env_file:
+      - ../../.env
+    depends_on:
+      db:
+        condition: service_healthy
+      frontend-builder:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
+      DEBUG: "False"
+    restart: always
+    expose:
+      - "8000"
+
+  static_collector:
+    build:
+      context: ../../star-burger-src
+      dockerfile: ../star-burger-docker/docker/backend/Dockerfile
+    command: sh -c "python manage.py collectstatic --noinput && cp -r /app/staticfiles/* /frontend/ 2>/dev/null; cp -r /app/bundles/* /frontend/ 2>/dev/null; echo 'Static collected and copied'"
+    volumes:
+      - static_data_prod:/app/staticfiles
+      - frontend_bundles_prod:/app/bundles
+      - frontend_public:/frontend
+    depends_on:
+      - backend
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
+
+volumes:
+  postgres_data_prod:
+  media_data_prod:
+  frontend_bundles_prod:
+  static_data_prod:
+  frontend_public:

@@ -1,0 +1,11 @@
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN npm ci --no-audit --no-fund
+
+COPY bundles-src ./bundles-src
+
+RUN npm run build
