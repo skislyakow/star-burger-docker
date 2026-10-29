@@ -29,7 +29,7 @@ services:
       dockerfile: ../star-burger-docker/docker/backend/Dockerfile
     command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py seed_demo --orders 6 || true && python manage.py runserver 0.0.0.0:8000"
     volumes:
-      - media_data:/app/media
+      - ./media:/app/media
       - frontend_bundles:/app/bundles
       - static_data:/app/staticfiles
     ports:
@@ -49,13 +49,12 @@ services:
     volumes:
       - ./docker/dev/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
       - frontend_bundles:/app/bundles:ro
-      - media_data:/app/media:ro
+      - ./media:/app/media:ro
       - static_data:/app/staticfiles:ro
     depends_on:
       - backend
 
 volumes:
   postgres_data:
-  media_data:
   frontend_bundles:
   static_data:
