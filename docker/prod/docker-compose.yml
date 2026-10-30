@@ -20,16 +20,16 @@ services:
 
   frontend-builder:
     build:
-      context: ../../star-burger-src
-      dockerfile: ../star-burger-docker/docker/frontend/Dockerfile
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
     volumes:
       - frontend_bundles_prod:/app/bundles
     command: sh -c "echo 'Frontend built'"
 
   backend:
     build:
-      context: ../../star-burger-src
-      dockerfile: ../star-burger-docker/docker/backend/Dockerfile
+      context: ..
+      dockerfile: docker/backend/Dockerfile
     command: sh -c "python manage.py migrate && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - media_data_prod:/app/media
@@ -51,8 +51,8 @@ services:
 
   static_collector:
     build:
-      context: ../../star-burger-src
-      dockerfile: ../star-burger-docker/docker/backend/Dockerfile
+      context: ..
+      dockerfile: docker/backend/Dockerfile
     command: sh -c "python manage.py collectstatic --noinput && cp -r /app/staticfiles/* /frontend/ 2>/dev/null; cp -r /app/bundles/* /frontend/ 2>/dev/null; echo 'Static collected and copied'"
     volumes:
       - static_data_prod:/app/staticfiles
