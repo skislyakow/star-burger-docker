@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16
     env_file:
-      - ../../.env
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-starburger}
       POSTGRES_USER: ${POSTGRES_USER:-starburger}
@@ -20,23 +18,25 @@ services:
 
   frontend-builder:
     build:
-      context: ..
+      context: .
       dockerfile: docker/frontend/Dockerfile
     volumes:
-      - frontend_bundles_prod:/app/bundles
-    command: sh -c "echo 'Frontend built'"
+      - frontend_bundles_prod:/output
+    # Образ уже содержит собранные bundles; volume перекрывает /app/bundles,
+    # поэтому копируем артефакты сборки в volume для backend/collectstatic.
+    command: sh -c "cp -a /app/bundles/. /output/ && echo 'Frontend bundles copied'"
 
   backend:
     build:
-      context: ..
+      context: .
       dockerfile: docker/backend/Dockerfile
-    command: sh -c "python manage.py migrate && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
-      - media_data_prod:/app/media
+      - ./media:/app/media
       - frontend_bundles_prod:/app/bundles
-      - static_data_prod:/app/staticfiles
+      - ./staticfiles:/app/staticfiles
     env_file:
-      - ../../.env
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -46,28 +46,26 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
       DEBUG: "False"
     restart: always
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8002:8000"
 
   static_collector:
     build:
-      context: ..
+      context: .
       dockerfile: docker/backend/Dockerfile
-    command: sh -c "python manage.py collectstatic --noinput && cp -r /app/staticfiles/* /frontend/ 2>/dev/null; cp -r /app/bundles/* /frontend/ 2>/dev/null; echo 'Static collected and copied'"
+    command: sh -c "python manage.py collectstatic --noinput && echo 'Static collected'"
     volumes:
-      - static_data_prod:/app/staticfiles
+      - ./staticfiles:/app/staticfiles
       - frontend_bundles_prod:/app/bundles
-      - frontend_public:/frontend
+      - ./media:/app/media
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     env_file:
-      - ../../.env
+      - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
 
 volumes:
   postgres_data_prod:
-  media_data_prod:
   frontend_bundles_prod:
-  static_data_prod:
-  frontend_public:
