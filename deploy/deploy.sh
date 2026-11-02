@@ -29,9 +29,18 @@ fi
 echo "=== Stopping any leftover dev compose stack ==="
 docker compose --project-directory "$PROJECT_DIR" -f "$PROJECT_DIR/docker-compose.yaml" down --remove-orphans || true
 
-echo "=== Building images and starting containers ==="
+echo "=== Building images ==="
+$COMPOSE build
+
+echo "=== Starting containers ==="
 $COMPOSE down --remove-orphans || true
-$COMPOSE up -d --build db frontend-builder backend
+$COMPOSE up -d db backend
+
+echo "=== Copying frontend bundles ==="
+docker run --rm \
+  -v star-burger-docker_frontend_bundles:/out \
+  star-burger-docker-frontend:latest \
+  sh -c "cp -r /app/bundles/* /out/ 2>/dev/null || true"
 
 echo "=== Waiting for backend to be ready ==="
 sleep 15
