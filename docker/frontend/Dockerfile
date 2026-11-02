@@ -4,8 +4,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 
 WORKDIR /app
 
-RUN git clone https://github.com/skislyakow/star-burger.git .
+RUN git init && \
+    git remote add origin https://github.com/skislyakow/star-burger.git && \
+    git fetch --depth=1 origin main && \
+    git checkout origin/main -- package.json package-lock.json
 
 RUN npm ci --no-audit --no-fund
+
+RUN git checkout origin/main
 
 RUN npm run build

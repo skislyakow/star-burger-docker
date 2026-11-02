@@ -16,9 +16,14 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
 
-RUN git clone https://github.com/skislyakow/star-burger.git .
+RUN git init && \
+    git remote add origin https://github.com/skislyakow/star-burger.git && \
+    git fetch --depth=1 origin main && \
+    git checkout origin/main -- pyproject.toml uv.lock
 
 RUN uv sync --frozen --no-dev
+
+RUN git checkout origin/main
 
 EXPOSE 8000
 
