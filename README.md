@@ -108,9 +108,8 @@ Docker включён в автозагрузку, у всех сервисов 
 ## Файлы в репозитории
 
 - `docker/dev/docker-compose.yml` - запуск для разработки (независимый конфиг)
-- `docker/dev/.env` - переменные для dev
 - `docker/dev/nginx.dev.conf` - конфиг nginx для dev
 - `docker/prod/docker-compose.yml` - конфиг для продакшена (независимый конфиг)
-- `docker/prod/.env` - переменные для prod
+- `docker/prod/nginx.host.conf.example` - конфиг nginx для продакшена
 - `deploy/deploy.sh` - скрипт автоматизации деплоя
 - `.env.example` - пример переменных окружения
