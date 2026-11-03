@@ -16,55 +16,39 @@ services:
       retries: 5
     restart: always
 
-  frontend-builder:
-    build:
-      context: .
-      dockerfile: docker/frontend/Dockerfile
+  frontend:
+    image: node:22-bookworm-slim
+    working_dir: /app
     volumes:
-      - frontend_bundles_prod:/output
-    # Образ уже содержит собранные bundles; volume перекрывает /app/bundles,
-    # поэтому копируем артефакты сборки в volume для backend/collectstatic.
-    command: sh -c "cp -a /app/bundles/. /output/ && echo 'Frontend bundles copied'"
-
-  backend:
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
-    command: sh -c "python manage.py migrate && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
-    volumes:
-      - ./media:/app/media
       - frontend_bundles_prod:/app/bundles
-      - ./staticfiles:/app/staticfiles
     env_file:
       - .env
+    command: sh -c "apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* && git init && git remote add origin https://github.com/skislyakow/star-burger.git && git fetch --depth=1 origin main && git checkout origin/main -- package.json package-lock.json && npm ci --no-audit --no-fund && git checkout origin/main && npm run build"
+
+  backend:
+    image: python:3.12-slim-bookworm
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PATH: /app/.venv/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
+      DEBUG: "False"
+    volumes:
+      - ../../media:/app/media
+      - frontend_bundles_prod:/app/bundles
+      - ../../staticfiles:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
-      frontend-builder:
+      frontend:
         condition: service_completed_successfully
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
-      DEBUG: "False"
+    command: sh -c "apt-get update && apt-get install -y --no-install-recommends curl build-essential libpq-dev git ca-certificates && rm -rf /var/lib/apt/lists/* && curl -LsSf https://astral.sh/uv/install.sh | sh && git init && git remote add origin https://github.com/skislyakow/star-burger.git && git fetch --depth=1 origin main && git checkout origin/main -- pyproject.toml uv.lock && uv sync --frozen --no-dev && git checkout origin/main && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn star_burger.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     restart: always
     ports:
       - "127.0.0.1:8002:8000"
-
-  static_collector:
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
-    command: sh -c "python manage.py collectstatic --noinput && echo 'Static collected'"
-    volumes:
-      - ./staticfiles:/app/staticfiles
-      - frontend_bundles_prod:/app/bundles
-      - ./media:/app/media
-    depends_on:
-      backend:
-        condition: service_started
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
 
 volumes:
   postgres_data_prod:

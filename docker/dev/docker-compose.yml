@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-starburger}
+      POSTGRES_USER: ${POSTGRES_USER:-starburger}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starburger}
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-starburger}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    volumes:
+      - ../../../star-burger:/app
+      - /app/node_modules
+      - frontend_bundles_dev:/app/bundles
+    env_file:
+      - .env
+    command: sh -c "apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* && git init && git remote add origin https://github.com/skislyakow/star-burger.git 2>/dev/null; git fetch --depth=1 origin main 2>/dev/null; git checkout origin/main -- package.json package-lock.json 2>/dev/null; npm ci --no-audit --no-fund && git checkout origin/main && npm run watch"
+
+  backend:
+    image: python:3.12-slim-bookworm
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PATH: /app/.venv/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
+    volumes:
+      - ../../../star-burger:/app
+      - /app/.venv
+      - ../../media:/app/media
+      - frontend_bundles_dev:/app/bundles
+      - static_data_dev:/app/staticfiles
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "apt-get update && apt-get install -y --no-install-recommends curl build-essential libpq-dev git ca-certificates && rm -rf /var/lib/apt/lists/* && curl -LsSf https://astral.sh/uv/install.sh | sh && git init && git remote add origin https://github.com/skislyakow/star-burger.git 2>/dev/null; git fetch --depth=1 origin main 2>/dev/null; git checkout origin/main -- pyproject.toml uv.lock 2>/dev/null; uv sync --frozen --no-dev && git checkout origin/main && python manage.py migrate && python manage.py collectstatic --noinput && python manage.py seed_demo --orders 6 || true && python manage.py runserver 0.0.0.0:8000"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ../../dev/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend_bundles_dev:/app/bundles:ro
+      - ../../media:/app/media:ro
+      - static_data_dev:/app/staticfiles:ro
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data_dev:
+  frontend_bundles_dev:
+  static_data_dev:

@@ -20,13 +20,14 @@ git clone <repo-url> star-burger-docker
 cd star-burger-docker
 ```
 
-2. Скопируйте `.env.example` в `.env` и заполните переменные:
+2. Скопируйте `.env.example` в `docker/dev/.env` или используйте готовый `docker/dev/.env`:
 ```bash
-cp .env.example .env
+cp .env.example docker/dev/.env
 ```
 
-3. Запустите проект:
+3. Запустите проект из директории `docker/dev`:
 ```bash
+cd docker/dev
 docker compose up --build
 ```
 
@@ -45,11 +46,11 @@ docker compose exec backend python manage.py createsuperuser
 docker compose down
 ```
 
-Файлы в `media/` сохраняются в volume. Данные БД сохраняются в volume при перезапуске контейнеров.
+Файлы в `media/` сохраняются в volume/каталоге. Данные БД сохраняются в volume при перезапуске контейнеров.
 
 ## Деплой на сервер
 
-Сайт полностью докеризирован. Весь стек поднимается через **Docker Compose** из `docker/prod/docker-compose.yml`. Бэкенд, фронтенд, БД и Nginx — **отдельные контейнеры** (в разных сервисах docker-compose).
+Сайт полностью докеризирован. Весь стек поднимается через **Docker Compose** из `docker/prod/docker-compose.yml`. Бэкенд и БД — **отдельные контейнеры** (в разных сервисах docker-compose). Каждый окружение использует свой независимый набор конфигов и volumes.
 
 ### Структура на сервере
 ```text
@@ -106,10 +107,10 @@ Docker включён в автозагрузку, у всех сервисов 
 
 ## Файлы в репозитории
 
-- `docker-compose.yaml` - запуск для разработки
-- `docker/backend/Dockerfile` - образ Django
-- `docker/frontend/Dockerfile` - образ для сборки фронтенда (Node.js 22 + Parcel)
+- `docker/dev/docker-compose.yml` - запуск для разработки (независимый конфиг)
+- `docker/dev/.env` - переменные для dev
 - `docker/dev/nginx.dev.conf` - конфиг nginx для dev
-- `docker/prod/docker-compose.yml` - конфиг для продакшена
+- `docker/prod/docker-compose.yml` - конфиг для продакшена (независимый конфиг)
+- `docker/prod/.env` - переменные для prod
 - `deploy/deploy.sh` - скрипт автоматизации деплоя
 - `.env.example` - пример переменных окружения
