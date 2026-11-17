@@ -40,7 +40,7 @@ echo "=== Running migrations ==="
 $COMPOSE exec -T backend python manage.py migrate --noinput
 
 echo "=== Collecting static files ==="
-$COMPOSE run --rm static_collector
+$COMPOSE exec -T backend python manage.py collectstatic --noinput
 
 echo "=== Reloading host nginx ==="
 nginx -t && systemctl reload nginx

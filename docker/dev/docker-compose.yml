@@ -54,7 +54,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ../../dev/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
       - frontend_bundles_dev:/app/bundles:ro
       - ../../media:/app/media:ro
       - static_data_dev:/app/staticfiles:ro

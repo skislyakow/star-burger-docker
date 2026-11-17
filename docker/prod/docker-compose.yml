@@ -37,9 +37,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-starburger}:${POSTGRES_PASSWORD:-starburger}@db:5432/${POSTGRES_DB:-starburger}
       DEBUG: "False"
     volumes:
-      - ../../media:/app/media
+      - ./media:/app/media
       - frontend_bundles_prod:/app/bundles
-      - ../../staticfiles:/app/staticfiles
+      - ./staticfiles:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
