@@ -12,8 +12,20 @@ COMPOSE="docker compose --project-directory $PROJECT_DIR -f $PROJECT_DIR/docker/
 
 cd "$PROJECT_DIR"
 
+# Скрипт обновляет сам себя через git pull. Bash читает файл по мере выполнения,
+# поэтому после обновления нужно перезапуститься, иначе он продолжит со старых
+# смещений и часть новых шагов будет пропущена.
+SCRIPT_PATH="$PROJECT_DIR/deploy/deploy.sh"
+SCRIPT_HASH_BEFORE=$(sha256sum "$SCRIPT_PATH" | cut -d' ' -f1)
+
 echo "=== Pulling latest infra changes ==="
 git pull
+
+SCRIPT_HASH_AFTER=$(sha256sum "$SCRIPT_PATH" | cut -d' ' -f1)
+if [ "$SCRIPT_HASH_BEFORE" != "$SCRIPT_HASH_AFTER" ]; then
+    echo "=== Deploy script changed, re-executing ==="
+    exec bash "$SCRIPT_PATH" "$@"
+fi
 
 if [ -d "$APP_DIR" ]; then
     echo "=== Pulling latest app changes ==="
