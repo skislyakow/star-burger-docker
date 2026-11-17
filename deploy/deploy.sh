@@ -26,15 +26,30 @@ if systemctl list-unit-files star-burger.service >/dev/null 2>&1; then
     systemctl disable star-burger.service || true
 fi
 
-echo "=== Stopping any leftover dev compose stack ==="
-docker compose --project-directory "$PROJECT_DIR" -f "$PROJECT_DIR/docker-compose.yaml" down --remove-orphans || true
+if [ -f "$PROJECT_DIR/docker-compose.yaml" ]; then
+    echo "=== Stopping any leftover dev compose stack ==="
+    docker compose --project-directory "$PROJECT_DIR" -f "$PROJECT_DIR/docker-compose.yaml" down --remove-orphans || true
+fi
 
 echo "=== Starting containers ==="
 $COMPOSE down --remove-orphans || true
 $COMPOSE up -d db frontend backend
 
 echo "=== Waiting for backend to be ready ==="
-sleep 15
+# Первый старт включает apt-get, git clone и uv sync — это дольше 15 секунд.
+# Ждём реальной готовности приложения, а не фиксированного таймаута.
+for i in $(seq 1 60); do
+    if curl -fsS http://127.0.0.1:8002/healthz/ > /dev/null 2>&1; then
+        echo "Backend is healthy"
+        break
+    fi
+    if [ "$i" -eq 60 ]; then
+        echo "Backend did not become healthy in time" >&2
+        $COMPOSE logs --tail=50 backend >&2
+        exit 1
+    fi
+    sleep 5
+done
 
 echo "=== Running migrations ==="
 $COMPOSE exec -T backend python manage.py migrate --noinput
